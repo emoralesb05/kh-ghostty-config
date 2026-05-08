@@ -20,7 +20,7 @@ TS="$(date +%Y%m%d-%H%M%S)"
 
 THEMES=(kh-gold kh-silver)
 SHADERS=(dive-to-heart destiny-islands twilight-town)
-ASSETS=(dive-to-heart-bg.png)
+ASSETS=(dive-to-heart-bg.png twilight-town-bg.png)
 
 # --- Detect local vs remote mode ---
 LOCAL_MODE=false

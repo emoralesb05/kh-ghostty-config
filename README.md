@@ -17,8 +17,8 @@ Ghostty, VS Code, Cursor, and your fish shell in sync.
 - **Three custom shaders** — `dive-to-heart`, `destiny-islands`, `twilight-town`.
   All preserve text legibility via terminal-luminance masking and are tuned
   for use with `background-opacity` around 0.82.
-- **Dive to the Heart backdrop** — an optional underwater stained-glass
-  Station of Awakening background for Ghostty's `background-image`.
+- **World backdrops** — optional `background-image` assets for Dive to the
+  Heart and Twilight Town, with `kh-shader` switching the matching image.
 - **`kh-variant` CLI** — `gold | silver | toggle | status`. Swaps Ghostty,
   VS Code, Cursor, and the `KH_VARIANT` fish universal var in one shot.
 - **`kh-shader` CLI** — `list | set <name> | toggle | status | auto`. Edits
@@ -167,16 +167,24 @@ luminance mask so effects sit behind text rather than on top of it.
 |--------|------|---------------|
 | `dive-to-heart.glsl` | Underwater Station of Awakening — oculus light, subtle stained glass, tilted glass floor | Default; long sessions |
 | `destiny-islands.glsl` | Paopu sunset — warm sky, sun, bent palm trunk silhouette, drooping fronds | Warm/peaceful work |
-| `twilight-town.glsl` | Multi-tier clock tower at endless sunset, with rotating clock hands | Reading / contemplative |
+| `twilight-town.glsl` | Twilight Town clock tower at sunset, with subtle cloud drift and clock glow | Reading / contemplative |
 
 Animation is continuous but subtle — designed to live behind text without distracting.
 
 Switch shader by editing the `custom-shader = …` line in `~/.config/ghostty/config`.
 
-The optional `assets/dive-to-heart-bg.png` backdrop pairs best with
-`dive-to-heart.glsl` at `background-image-opacity` around `0.18`-`0.28`.
-Lower it first if the terminal feels too bright; keep the shader subtle so
-the asset carries the detailed stained-glass texture.
+The optional backdrops pair best with `background-image-opacity` around
+`0.18`-`0.28`. Lower it first if the terminal feels too bright; keep the
+shader subtle so the asset carries the detailed world texture.
+
+| Shader | Matching backdrop |
+|--------|-------------------|
+| `dive-to-heart.glsl` | `assets/dive-to-heart-bg.png` |
+| `twilight-town.glsl` | `assets/twilight-town-bg.png` |
+
+`kh-shader set <name>`, `toggle`, and `auto` update both `custom-shader` and
+the matching `background-image` when one exists. Shaders without a bundled
+backdrop clear the background-image settings.
 
 ## Customization
 

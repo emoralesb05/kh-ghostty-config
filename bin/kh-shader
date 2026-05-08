@@ -23,6 +23,7 @@ from pathlib import Path
 HOME = Path.home()
 GHOSTTY_CONFIG = HOME / ".config" / "ghostty" / "config"
 SHADER_DIR = HOME / ".config" / "ghostty" / "shaders"
+ASSET_DIR = HOME / ".config" / "ghostty" / "assets"
 
 # Map from kh-fish-theme world names → preferred shader basename.
 # Falls back to "dive-to-heart" if the world isn't mapped.
@@ -36,6 +37,22 @@ WORLD_TO_SHADER = {
 
 DEFAULT_SHADER = "dive-to-heart"
 USAGE = "Usage: kh-shader {list|status|set <name>|toggle|auto}"
+
+SHADER_TO_BACKGROUND = {
+    "dive-to-heart": "dive-to-heart-bg.png",
+    "twilight-town": "twilight-town-bg.png",
+}
+
+BACKGROUND_SETTINGS = {
+    "background-image-position": "center",
+    "background-image-fit": "cover",
+    "background-image-repeat": "false",
+}
+
+SHADER_BACKGROUND_OPACITY = {
+    "dive-to-heart": "0.22",
+    "twilight-town": "0.14",
+}
 
 
 def list_shaders() -> list[str]:
@@ -56,8 +73,23 @@ def detect_active() -> str | None:
     return Path(m.group(1).strip()).stem
 
 
+def set_config_line(text: str, key: str, value: str) -> str:
+    """Rewrite or append a single Ghostty config key."""
+    line = f"{key} = {value}"
+    if re.search(rf"^\s*{re.escape(key)}\s*=", text, re.MULTILINE):
+        return re.sub(rf"^\s*{re.escape(key)}\s*=.*$", line, text, count=1, flags=re.MULTILINE)
+    if text and not text.endswith("\n"):
+        text += "\n"
+    return text + line + "\n"
+
+
+def remove_config_line(text: str, key: str) -> str:
+    """Remove all occurrences of a Ghostty config key."""
+    return re.sub(rf"^\s*{re.escape(key)}\s*=.*\n?", "", text, flags=re.MULTILINE)
+
+
 def write_active(basename: str) -> None:
-    """Rewrite (or append) the `custom-shader =` line in Ghostty's config."""
+    """Rewrite the active shader and matching background image in Ghostty config."""
     target = SHADER_DIR / f"{basename}.glsl"
     if not target.exists():
         print(f"  Shader file not found: {target}", file=sys.stderr)
@@ -68,14 +100,25 @@ def write_active(basename: str) -> None:
         sys.exit(1)
 
     text = GHOSTTY_CONFIG.read_text()
-    line = f"custom-shader = {target}"
+    text = set_config_line(text, "custom-shader", str(target))
 
-    if re.search(r"^\s*custom-shader\s*=", text, re.MULTILINE):
-        text = re.sub(r"^\s*custom-shader\s*=.*$", line, text, count=1, flags=re.MULTILINE)
+    background = SHADER_TO_BACKGROUND.get(basename)
+    if background:
+        image = ASSET_DIR / background
+        if image.exists():
+            text = set_config_line(text, "background-image", str(image))
+            text = set_config_line(
+                text,
+                "background-image-opacity",
+                SHADER_BACKGROUND_OPACITY.get(basename, "0.22"),
+            )
+            for key, value in BACKGROUND_SETTINGS.items():
+                text = set_config_line(text, key, value)
+        else:
+            print(f"  Background image not found: {ASSET_DIR / background}", file=sys.stderr)
     else:
-        if text and not text.endswith("\n"):
-            text += "\n"
-        text += line + "\n"
+        for key in ("background-image", "background-image-opacity", *BACKGROUND_SETTINGS.keys()):
+            text = remove_config_line(text, key)
 
     backup_once(GHOSTTY_CONFIG)
     GHOSTTY_CONFIG.write_text(text)
