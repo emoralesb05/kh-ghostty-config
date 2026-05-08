@@ -1,5 +1,5 @@
 // Ghostty custom shader - "Dive to the Heart"
-// Subtle animated light layer for the generated stained-glass background.
+// Subtle animated light layer for the Dive to the Heart background.
 // The bitmap carries the art; this shader only adds motion and text bloom.
 
 float hash(vec2 p) {
@@ -30,12 +30,17 @@ float glassMote(vec2 p, float size) {
     return min(diamond + glow, 1.0);
 }
 
+float rayBand(vec2 p, float angle, float speed) {
+    float beam = sin((p.x * cos(angle) + p.y * sin(angle)) * 24.0 + iTime * speed);
+    return smoothstep(0.68, 0.98, 0.5 + 0.5 * beam);
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord.xy / iResolution.xy;
     vec4 term = texture(iChannel0, uv);
 
-    const float sceneOpacity = 0.22;
-    const float textBloom = 0.24;
+    const float sceneOpacity = 0.32;
+    const float textBloom = 0.22;
 
     float aspectX = iResolution.x / iResolution.y;
     vec2 aspect = vec2(aspectX, 1.0);
@@ -46,42 +51,75 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     vec3 scene = vec3(0.0);
 
-    // Slow underwater veil. Kept very low so it does not fight the bitmap.
+    // Slow underwater veil over the side walls. The center stays mostly clear
+    // for the existing light shaft in the image.
     float veilNoise = noise(uv * vec2(3.2, 5.0) + vec2(iTime * 0.010, -iTime * 0.006));
     float veil = smoothstep(0.42, 0.86, veilNoise)
                * (1.0 - smoothstep(0.28, 0.68, abs(uv.x - 0.5)));
-    scene += mix(indigo, aqua, uv.y) * veil * 0.030;
+    scene += mix(indigo, aqua, uv.y) * veil * 0.048;
 
-    // A gentle animated shaft aligned with the generated oculus/background.
-    vec2 oculusPos = vec2(0.50, 0.145);
-    float yFromOculus = clamp((uv.y - oculusPos.y) / 0.78, 0.0, 1.0);
-    float shaftVertical = smoothstep(0.02, 0.18, yFromOculus)
-                        * (1.0 - smoothstep(0.86, 1.0, yFromOculus));
+    // Animated shaft aligned with the falling light in the KH image.
+    vec2 oculusPos = vec2(0.50, 0.000);
+    float yFromOculus = clamp(uv.y / 0.72, 0.0, 1.0);
+    float shaftVertical = (1.0 - smoothstep(0.66, 0.96, yFromOculus));
     float shaftCenter = 0.5 + 0.010 * sin(uv.y * 8.0 + iTime * 0.075);
-    float shaftWidth = mix(0.035, 0.210, yFromOculus);
+    float shaftWidth = mix(0.080, 0.230, yFromOculus);
     float shaftX = (uv.x - shaftCenter) * aspectX;
     float shaft = gaussian(shaftX, shaftWidth) * shaftVertical;
-    float shaftCore = gaussian(shaftX, shaftWidth * 0.30) * shaftVertical;
+    float shaftCore = gaussian(shaftX, shaftWidth * 0.34) * shaftVertical;
     float pulse = 0.86 + 0.14 * sin(iTime * 0.22);
 
-    scene += paleBlue * shaft * pulse * 0.100;
-    scene += vec3(0.86, 0.97, 1.00) * shaftCore * pulse * 0.075;
+    // Breathing glow around the top stained-glass oculus.
+    vec2 oculusP = (uv - vec2(0.50, 0.010)) * aspect;
+    float oculusGlow = gaussian(length(oculusP), 0.115);
+    float oculusPulse = 0.82 + 0.18 * sin(iTime * 0.28);
+    scene += paleBlue * oculusGlow * oculusPulse * 0.055;
+
+    scene += paleBlue * shaft * pulse * 0.115;
+    scene += vec3(0.86, 0.97, 1.00) * shaftCore * pulse * 0.090;
+
+    // Long, slow god rays inside the main shaft.
+    vec2 rayP = (uv - vec2(0.50, 0.03)) * aspect;
+    float rayMask = shaft * (1.0 - smoothstep(0.58, 0.88, uv.y));
+    float rays = rayBand(rayP, 1.35, 0.18) + rayBand(rayP, 1.70, -0.14);
+    scene += paleBlue * rays * rayMask * 0.038;
 
     // Sparse rising motes, only inside the light column.
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 20; i++) {
         float fi = float(i);
-        float speed = 0.010 + 0.010 * hash(vec2(fi, 3.7));
-        float my = 0.17 + fract(hash(vec2(fi, 2.4)) - iTime * speed) * 0.62;
-        float t = clamp((my - oculusPos.y) / 0.78, 0.0, 1.0);
-        float mx = 0.5 + (hash(vec2(fi, 5.1)) - 0.5) * mix(0.040, 0.250, t);
+        float speed = 0.012 + 0.014 * hash(vec2(fi, 3.7));
+        float my = 0.02 + fract(hash(vec2(fi, 2.4)) - iTime * speed) * 0.54;
+        float t = clamp(my / 0.60, 0.0, 1.0);
+        float mx = 0.5 + (hash(vec2(fi, 5.1)) - 0.5) * mix(0.060, 0.265, t);
         vec2 mp = (uv - vec2(mx, my)) * aspect;
 
-        float m = glassMote(mp, 0.0038 + 0.0035 * hash(vec2(fi, 9.0)));
+        float m = glassMote(mp, 0.0042 + 0.0045 * hash(vec2(fi, 9.0)));
         float inBeam = gaussian((mx - shaftCenter) * aspectX, mix(0.040, 0.205, t));
-        scene += paleBlue * m * inBeam * 0.105;
+        scene += paleBlue * m * inBeam * 0.145;
     }
 
-    // Slightly cool the outer edges so the generated art stays tucked back.
+    // Slower, larger motes that feel suspended rather than sparkly.
+    for (int i = 0; i < 7; i++) {
+        float fi = float(i);
+        float speed = 0.004 + 0.006 * hash(vec2(fi, 12.3));
+        float my = 0.06 + fract(hash(vec2(fi, 13.7)) - iTime * speed) * 0.48;
+        float t = clamp(my / 0.58, 0.0, 1.0);
+        float mx = 0.5 + (hash(vec2(fi, 15.1)) - 0.5) * mix(0.040, 0.190, t);
+        vec2 mp = (uv - vec2(mx, my)) * aspect;
+
+        float mote = glassMote(mp, 0.010 + 0.006 * hash(vec2(fi, 19.0)));
+        float inBeam = gaussian((mx - shaftCenter) * aspectX, mix(0.070, 0.200, t));
+        float fade = 0.70 + 0.30 * sin(iTime * (0.16 + speed) + fi * 1.7);
+        scene += vec3(0.82, 0.98, 1.00) * mote * inBeam * fade * 0.080;
+    }
+
+    // Slight cyan shimmer over the stained glass rim at the bottom.
+    float glassRim = gaussian(uv.y - 0.720, 0.045)
+                   * (1.0 - smoothstep(0.96, 1.0, uv.y));
+    float shimmer = 0.5 + 0.5 * sin(uv.x * 46.0 + iTime * 0.55);
+    scene += aqua * glassRim * shimmer * 0.035;
+
+    // Slightly cool the outer edges so the image stays tucked back.
     float sideShade = smoothstep(0.18, 0.56, abs(uv.x - 0.5));
     scene -= indigo * sideShade * 0.18;
 
