@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# kh-ghostty-config installer — themes, shaders, kh-variant CLI, fish title hook
+# kh-ghostty-config installer — themes, shaders, kh-variant + kh-shader CLIs
 # Modes:
 #   Local:  bash install.sh              (run from cloned repo)
 #   Remote: bash <(curl -fsSL <url>)     (downloads sources, then symlinks)
@@ -14,12 +14,11 @@ GHOSTTY_DIR="$HOME/.config/ghostty"
 THEMES_DST="$GHOSTTY_DIR/themes"
 SHADERS_DST="$GHOSTTY_DIR/shaders"
 BIN_DIR="$HOME/.local/bin"
-FISH_CONFD="$HOME/.config/fish/conf.d"
 CACHE_DIR="$HOME/.local/share/kh-ghostty-config"
 TS="$(date +%Y%m%d-%H%M%S)"
 
 THEMES=(kh-gold kh-silver)
-SHADERS=(dive-to-heart destiny-islands twilight-town world-that-never-was)
+SHADERS=(dive-to-heart destiny-islands twilight-town)
 
 # --- Detect local vs remote mode ---
 LOCAL_MODE=false
@@ -47,7 +46,7 @@ echo ""
 # Detect update vs fresh
 UPDATING=false
 if [ -L "$THEMES_DST/kh-gold" ] || [ -L "$THEMES_DST/kh-silver" ] \
-   || [ -x "$BIN_DIR/kh-variant" ]; then
+   || [ -L "$BIN_DIR/kh-variant" ] || [ -L "$BIN_DIR/kh-shader" ]; then
   UPDATING=true
   echo "  Existing install found. Updating..."
 else
@@ -56,7 +55,7 @@ fi
 echo ""
 
 # Ensure target dirs
-mkdir -p "$THEMES_DST" "$SHADERS_DST" "$BIN_DIR" "$FISH_CONFD"
+mkdir -p "$THEMES_DST" "$SHADERS_DST" "$BIN_DIR"
 
 # --- Helpers ---
 
@@ -93,7 +92,7 @@ fetch_to_cache() {
 if [ "$LOCAL_MODE" = false ]; then
   echo "  Installing from GitHub (remote mode)..."
   echo "  Source cache: $CACHE_DIR"
-  mkdir -p "$CACHE_DIR/themes" "$CACHE_DIR/shaders" "$CACHE_DIR/bin" "$CACHE_DIR/fish"
+  mkdir -p "$CACHE_DIR/themes" "$CACHE_DIR/shaders" "$CACHE_DIR/bin"
   for t in "${THEMES[@]}"; do
     fetch_to_cache "themes/$t"
   done
@@ -101,10 +100,10 @@ if [ "$LOCAL_MODE" = false ]; then
     fetch_to_cache "shaders/$s.glsl"
   done
   fetch_to_cache "bin/kh-variant"
-  fetch_to_cache "fish/kh_ghostty_world_title.fish"
+  fetch_to_cache "bin/kh-shader"
   fetch_to_cache "VERSION"
   fetch_to_cache "uninstall.sh"
-  chmod +x "$CACHE_DIR/bin/kh-variant" "$CACHE_DIR/uninstall.sh"
+  chmod +x "$CACHE_DIR/bin/kh-variant" "$CACHE_DIR/bin/kh-shader" "$CACHE_DIR/uninstall.sh"
   echo ""
 else
   echo "  Installing from local source: $SCRIPT_DIR"
@@ -139,26 +138,18 @@ for s in "${SHADERS[@]}"; do
   echo "    $dst → $src"
 done
 
-# --- bin/kh-variant ---
-echo "  Installing kh-variant..."
-src="$SRC_ROOT/bin/kh-variant"
-dst="$BIN_DIR/kh-variant"
-if [ -e "$src" ]; then
-  backup_if_exists "$dst"
-  ln -sf "$src" "$dst"
-  chmod +x "$src"
-  echo "    $dst → $src"
-fi
-
-# --- fish hook ---
-echo "  Installing fish title hook..."
-src="$SRC_ROOT/fish/kh_ghostty_world_title.fish"
-dst="$FISH_CONFD/kh_ghostty_world_title.fish"
-if [ -e "$src" ]; then
-  backup_if_exists "$dst"
-  ln -sf "$src" "$dst"
-  echo "    $dst → $src"
-fi
+# --- bin/kh-variant + bin/kh-shader ---
+echo "  Installing CLIs..."
+for cli in kh-variant kh-shader; do
+  src="$SRC_ROOT/bin/$cli"
+  dst="$BIN_DIR/$cli"
+  if [ -e "$src" ]; then
+    backup_if_exists "$dst"
+    ln -sf "$src" "$dst"
+    chmod +x "$src"
+    echo "    $dst → $src"
+  fi
+done
 
 echo ""
 
@@ -187,7 +178,8 @@ echo "    background-blur = 30"
 echo ""
 echo "  Reload Ghostty:   cmd+shift+,"
 echo "  Switch variants:  kh-variant toggle"
-echo "  Check active:     kh-variant status"
+echo "  Switch shaders:   kh-shader toggle    (or: kh-shader auto)"
+echo "  Check active:     kh-variant status / kh-shader status"
 echo ""
 echo "  May your heart be your guiding key."
 echo ""

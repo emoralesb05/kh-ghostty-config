@@ -2,8 +2,8 @@
 
 A Kingdom Hearts–themed terminal configuration for [Ghostty](https://ghostty.org/),
 with two color variants matched to [kh-vscode-theme](https://github.com/emoralesb05/kh-vscode-theme),
-custom world-themed shaders, a one-shot variant switcher, and a fish title hook
-that names your terminal after a KH world.
+custom world-themed shaders, and a one-shot variant switcher that keeps
+Ghostty, VS Code, Cursor, and your fish shell in sync.
 
 ![Ghostty](https://img.shields.io/badge/Terminal-Ghostty-1a1a1a?style=for-the-badge)
 ![Theme](https://img.shields.io/badge/Theme-Kingdom%20Hearts-purple?style=for-the-badge)
@@ -14,14 +14,14 @@ that names your terminal after a KH world.
 - **Two themes** — `kh-gold` (warm, near-black, gold cursor) and `kh-silver`
   (cool blue-black, cyan cursor). Palettes are aligned 1:1 with the matching
   KH VS Code variants so your editor and terminal share an identity.
-- **Four custom shaders** — `dive-to-heart`, `destiny-islands`, `twilight-town`,
-  `world-that-never-was`. All preserve text legibility via terminal-luminance
-  masking and are tuned for use with `background-opacity` around 0.82.
+- **Three custom shaders** — `dive-to-heart`, `destiny-islands`, `twilight-town`.
+  All preserve text legibility via terminal-luminance masking and are tuned
+  for use with `background-opacity` around 0.82.
 - **`kh-variant` CLI** — `gold | silver | toggle | status`. Swaps Ghostty,
   VS Code, Cursor, and the `KH_VARIANT` fish universal var in one shot.
-- **Fish title hook** — sets the terminal title to `<World> · <basename(pwd)>`,
-  using [kh-fish-theme](https://github.com/emoralesb05/kh-fish-theme)'s world
-  detection if present, or falling back to a small inline detector.
+- **`kh-shader` CLI** — `list | set <name> | toggle | status | auto`. Edits
+  the `custom-shader = …` line in Ghostty's config. `auto` picks a shader
+  based on the detected KH world for the current directory.
 
 ## Prerequisites
 
@@ -35,11 +35,10 @@ that names your terminal after a KH world.
 
 | Tool | What you get without it |
 |------|-------------------------|
-| [Fish shell](https://fishshell.com/) | The title hook (`fish/kh_ghostty_world_title.fish`) only runs in fish. Other shells just won't see it. |
 | [VS Code](https://code.visualstudio.com/) | `kh-variant` skips the VS Code update with a friendly message. |
 | [Cursor](https://cursor.sh/) | `kh-variant` skips the Cursor update with a friendly message. |
 | [kh-vscode-theme](https://github.com/emoralesb05/kh-vscode-theme) | Without it installed, `kh-variant gold/silver` will set `workbench.colorTheme` to `"KH Gold (Subtle)"` — VS Code/Cursor will warn that the theme is missing. **Install this if you plan to use `kh-variant`.** |
-| [kh-fish-theme](https://github.com/emoralesb05/kh-fish-theme) | The fish title hook falls back to its own (less rich) inline world detector instead of using `__fish_kh_detect_world`. |
+| [kh-fish-theme](https://github.com/emoralesb05/kh-fish-theme) | `kh-shader auto` falls back to its own inline world detector instead of using `__fish_kh_detect_world`. |
 
 ## Install
 
@@ -62,8 +61,7 @@ What it does:
 - Symlinks `themes/*` → `~/.config/ghostty/themes/`
 - Symlinks `shaders/*.glsl` → `~/.config/ghostty/shaders/`
 - Backs up any in-the-way files first (`*.bak.<timestamp>`)
-- Installs `bin/kh-variant` → `~/.local/bin/kh-variant`
-- Installs `fish/kh_ghostty_world_title.fish` → `~/.config/fish/conf.d/`
+- Installs `bin/kh-variant` and `bin/kh-shader` → `~/.local/bin/`
 - Does **not** create or modify `~/.config/ghostty/config`
 
 In remote (curl-pipe) mode the installer first downloads sources into
@@ -81,6 +79,10 @@ font-size = 14
 background-opacity = 0.82
 background-blur = 30
 custom-shader = ~/.config/ghostty/shaders/dive-to-heart.glsl
+
+# Required if you use kh-fish-theme's Command Menu (Option+Space). Recent
+# Ghostty defaults send ESC+Space, which the fish theme doesn't listen for.
+macos-option-as-alt = false
 
 # Splits & quick-terminal (suggested)
 keybind = cmd+d=new_split:right
@@ -118,6 +120,29 @@ kh-variant status    # → which is active right now
 
 Then it reminds you to press `cmd+shift+,` to reload Ghostty.
 
+## Switching shaders
+
+```bash
+kh-shader list          # show available shaders + which is active
+kh-shader set destiny-islands
+kh-shader toggle        # cycle through shaders alphabetically
+kh-shader status        # which shader is active
+kh-shader auto          # pick shader by detected KH world for the current dir
+```
+
+`kh-shader` rewrites the `custom-shader = …` line in `~/.config/ghostty/config`
+(creating it if absent). It keeps a one-time sticky backup at
+`~/.config/ghostty/config.kh-shader-orig`.
+
+`kh-shader auto` calls kh-fish-theme's `__fish_kh_detect_world` if installed,
+otherwise uses an inline detector. World → shader mapping:
+
+| World | Shader |
+|-------|--------|
+| Destiny Islands · Radiant Garden | `destiny-islands` |
+| Twilight Town | `twilight-town` |
+| Traverse Town · Hollow Bastion · (anything else) | `dive-to-heart` |
+
 ## Themes
 
 | Variant | Background | Foreground | Cursor |
@@ -132,10 +157,11 @@ luminance mask so effects sit behind text rather than on top of it.
 
 | Shader | Mood | Suggested for |
 |--------|------|---------------|
-| `dive-to-heart.glsl` | Drifting starfield + heart-of-light bloom | Default; long sessions |
-| `destiny-islands.glsl` | Warm sunset, palm-frond silhouettes | Quiet/note-taking |
-| `twilight-town.glsl` | Sepia drift, light streaks, clock-tower vignette | Reading/docs |
-| `world-that-never-was.glsl` | Black, occasional neon-pink rain | Late night / focus |
+| `dive-to-heart.glsl` | Drifting starfield + heart-of-light bloom on dark indigo nebula | Default; long sessions |
+| `destiny-islands.glsl` | Paopu sunset — warm sky, sun, bent palm trunk silhouette, drooping fronds | Warm/peaceful work |
+| `twilight-town.glsl` | Multi-tier clock tower at endless sunset, with rotating clock hands | Reading / contemplative |
+
+Animation is continuous but subtle — designed to live behind text without distracting.
 
 Switch shader by editing the `custom-shader = …` line in `~/.config/ghostty/config`.
 
@@ -156,7 +182,7 @@ bash uninstall.sh
 ```
 
 Removes the symlinks, restores the most recent backups (if any), and removes
-`kh-variant` and the fish conf.d hook.
+the `kh-variant` and `kh-shader` CLIs.
 
 ## Related
 

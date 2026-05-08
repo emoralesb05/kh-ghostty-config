@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""
+kh-shader — switch Ghostty's `custom-shader` line between the bundled KH world
+shaders. Pairs with kh-variant.
+
+Usage:
+    kh-shader list           # available shaders + which is active
+    kh-shader status         # active shader basename
+    kh-shader set <name>     # set active shader (basename, no .glsl needed)
+    kh-shader toggle         # cycle to the next shader (alphabetical)
+    kh-shader auto           # pick a shader based on detected KH world (PWD)
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HOME = Path.home()
+GHOSTTY_CONFIG = HOME / ".config" / "ghostty" / "config"
+SHADER_DIR = HOME / ".config" / "ghostty" / "shaders"
+
+# Map from kh-fish-theme world names → preferred shader basename.
+# Falls back to "dive-to-heart" if the world isn't mapped.
+WORLD_TO_SHADER = {
+    "Destiny Islands": "destiny-islands",
+    "Twilight Town": "twilight-town",
+    "Traverse Town": "dive-to-heart",
+    "Hollow Bastion": "dive-to-heart",
+    "Radiant Garden": "destiny-islands",
+}
+
+DEFAULT_SHADER = "dive-to-heart"
+USAGE = "Usage: kh-shader {list|status|set <name>|toggle|auto}"
+
+
+def list_shaders() -> list[str]:
+    """Return sorted shader basenames (without .glsl) from ~/.config/ghostty/shaders."""
+    if not SHADER_DIR.is_dir():
+        return []
+    return sorted(p.stem for p in SHADER_DIR.glob("*.glsl"))
+
+
+def detect_active() -> str | None:
+    """Read the active shader basename from Ghostty's config, or None if absent."""
+    if not GHOSTTY_CONFIG.exists():
+        return None
+    text = GHOSTTY_CONFIG.read_text()
+    m = re.search(r"^\s*custom-shader\s*=\s*(.+?)\s*$", text, re.MULTILINE)
+    if not m:
+        return None
+    return Path(m.group(1).strip()).stem
+
+
+def write_active(basename: str) -> None:
+    """Rewrite (or append) the `custom-shader =` line in Ghostty's config."""
+    target = SHADER_DIR / f"{basename}.glsl"
+    if not target.exists():
+        print(f"  Shader file not found: {target}", file=sys.stderr)
+        sys.exit(1)
+
+    if not GHOSTTY_CONFIG.exists():
+        print(f"  Ghostty config not found: {GHOSTTY_CONFIG}", file=sys.stderr)
+        sys.exit(1)
+
+    text = GHOSTTY_CONFIG.read_text()
+    line = f"custom-shader = {target}"
+
+    if re.search(r"^\s*custom-shader\s*=", text, re.MULTILINE):
+        text = re.sub(r"^\s*custom-shader\s*=.*$", line, text, count=1, flags=re.MULTILINE)
+    else:
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += line + "\n"
+
+    backup_once(GHOSTTY_CONFIG)
+    GHOSTTY_CONFIG.write_text(text)
+
+
+def backup_once(path: Path) -> None:
+    """One-time sticky backup before kh-shader first edits a file."""
+    sentinel = path.with_suffix(path.suffix + ".kh-shader-orig")
+    if not sentinel.exists():
+        shutil.copy2(path, sentinel)
+
+
+def detect_world() -> str:
+    """Return the detected KH world for the current PWD.
+
+    Prefers kh-fish-theme's `__fish_kh_detect_world` if fish is on PATH and
+    that function exists. Otherwise falls back to a small inline detector
+    that mirrors kh-fish-theme's logic.
+    """
+    fish = shutil.which("fish")
+    if fish:
+        try:
+            r = subprocess.run(
+                [fish, "-c", "functions -q __fish_kh_detect_world; and __fish_kh_detect_world"],
+                capture_output=True,
+                text=True,
+                cwd=os.getcwd(),
+                timeout=3,
+            )
+            # config.fish may print a welcome banner to stdout even in
+            # non-interactive `fish -c` invocations. The world name is the
+            # last non-empty line of stdout — take that.
+            lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+            if lines:
+                world = lines[-1].strip()
+                if world in WORLD_TO_SHADER or world == "Destiny Islands":
+                    return world
+        except (subprocess.SubprocessError, OSError):
+            pass
+
+    cwd = Path.cwd()
+    if (cwd / "Dockerfile").exists() and any((cwd / d).is_dir() for d in ("terraform", "k8s", ".github/workflows")):
+        return "Space Paranoids"
+    if any((cwd / f).exists() for f in ("pnpm-workspace.yaml", "lerna.json", "nx.json", "rush.json")):
+        return "The World That Never Was"
+    if (cwd / "package.json").exists():
+        try:
+            if '"react"' in (cwd / "package.json").read_text():
+                return "Traverse Town"
+        except OSError:
+            pass
+        return "Twilight Town"
+    if any((cwd / f).exists() for f in ("go.mod", "Cargo.toml", "requirements.txt", "pyproject.toml")):
+        return "Hollow Bastion"
+    if (cwd / "docs").is_dir():
+        return "Radiant Garden"
+    return "Destiny Islands"
+
+
+def cmd_list() -> int:
+    shaders = list_shaders()
+    if not shaders:
+        print(f"No shaders in {SHADER_DIR}. Did install.sh run?")
+        return 1
+    active = detect_active()
+    for s in shaders:
+        marker = "*" if s == active else " "
+        print(f"  {marker} {s}")
+    if active is None:
+        print("\n(no `custom-shader = …` line in Ghostty config)")
+    return 0
+
+
+def cmd_status() -> int:
+    active = detect_active()
+    if active is None:
+        print("active: none (no custom-shader line in Ghostty config)")
+        return 1
+    print(f"active: {active}")
+    return 0
+
+
+def cmd_set(name: str) -> int:
+    shaders = list_shaders()
+    if name not in shaders:
+        print(f"Unknown shader: {name}", file=sys.stderr)
+        print(f"Available: {', '.join(shaders) or '(none)'}", file=sys.stderr)
+        return 1
+    write_active(name)
+    print(f"Switched shader → {name}")
+    print("  Reload Ghostty: press cmd+shift+,")
+    return 0
+
+
+def cmd_toggle() -> int:
+    shaders = list_shaders()
+    if not shaders:
+        print("No shaders available to toggle.", file=sys.stderr)
+        return 1
+    active = detect_active()
+    if active in shaders:
+        idx = (shaders.index(active) + 1) % len(shaders)
+    else:
+        idx = 0
+    return cmd_set(shaders[idx])
+
+
+def cmd_auto() -> int:
+    world = detect_world()
+    shader = WORLD_TO_SHADER.get(world, DEFAULT_SHADER)
+    if shader not in list_shaders():
+        # Mapped shader not installed — fall back gracefully
+        shader = DEFAULT_SHADER
+    print(f"World: {world} → shader: {shader}")
+    return cmd_set(shader)
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2:
+        print(USAGE, file=sys.stderr)
+        return 2
+
+    cmd = argv[1].lower()
+    if cmd in ("-h", "--help", "help"):
+        print(__doc__.strip())
+        return 0
+    if cmd == "list":
+        return cmd_list()
+    if cmd == "status":
+        return cmd_status()
+    if cmd == "toggle":
+        return cmd_toggle()
+    if cmd == "auto":
+        return cmd_auto()
+    if cmd == "set":
+        if len(argv) != 3:
+            print("Usage: kh-shader set <name>", file=sys.stderr)
+            return 2
+        return cmd_set(argv[2])
+
+    print(USAGE, file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

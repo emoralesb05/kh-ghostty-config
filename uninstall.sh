@@ -1,17 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-# kh-ghostty-config uninstaller — removes symlinks, restores backups, removes CLI + fish hook
+# kh-ghostty-config uninstaller — removes symlinks, restores backups, removes CLIs
 
 GHOSTTY_DIR="$HOME/.config/ghostty"
 THEMES_DST="$GHOSTTY_DIR/themes"
 SHADERS_DST="$GHOSTTY_DIR/shaders"
 BIN_DIR="$HOME/.local/bin"
-FISH_CONFD="$HOME/.config/fish/conf.d"
 CACHE_DIR="$HOME/.local/share/kh-ghostty-config"
 
 THEMES=(kh-gold kh-silver)
-SHADERS=(dive-to-heart destiny-islands twilight-town world-that-never-was)
+SHADERS=(dive-to-heart destiny-islands twilight-town)
 
 echo ""
 echo "  === kh-ghostty-config uninstaller ==="
@@ -43,11 +42,9 @@ for s in "${SHADERS[@]}"; do
   remove_and_restore "$SHADERS_DST/$s.glsl"
 done
 
-# kh-variant CLI
+# CLIs
 remove_and_restore "$BIN_DIR/kh-variant"
-
-# fish hook
-remove_and_restore "$FISH_CONFD/kh_ghostty_world_title.fish"
+remove_and_restore "$BIN_DIR/kh-shader"
 
 # Erase the fish universal var (if fish is available)
 if command -v fish &>/dev/null; then
