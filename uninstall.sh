@@ -6,11 +6,13 @@ set -euo pipefail
 GHOSTTY_DIR="$HOME/.config/ghostty"
 THEMES_DST="$GHOSTTY_DIR/themes"
 SHADERS_DST="$GHOSTTY_DIR/shaders"
+ASSETS_DST="$GHOSTTY_DIR/assets"
 BIN_DIR="$HOME/.local/bin"
 CACHE_DIR="$HOME/.local/share/kh-ghostty-config"
 
 THEMES=(kh-gold kh-silver)
 SHADERS=(dive-to-heart destiny-islands twilight-town)
+ASSETS=(dive-to-heart-bg.png)
 
 echo ""
 echo "  === kh-ghostty-config uninstaller ==="
@@ -40,6 +42,9 @@ for t in "${THEMES[@]}"; do
 done
 for s in "${SHADERS[@]}"; do
   remove_and_restore "$SHADERS_DST/$s.glsl"
+done
+for a in "${ASSETS[@]}"; do
+  remove_and_restore "$ASSETS_DST/$a"
 done
 
 # CLIs

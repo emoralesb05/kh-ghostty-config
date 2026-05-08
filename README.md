@@ -17,6 +17,8 @@ Ghostty, VS Code, Cursor, and your fish shell in sync.
 - **Three custom shaders** — `dive-to-heart`, `destiny-islands`, `twilight-town`.
   All preserve text legibility via terminal-luminance masking and are tuned
   for use with `background-opacity` around 0.82.
+- **Dive to the Heart backdrop** — an optional underwater stained-glass
+  Station of Awakening background for Ghostty's `background-image`.
 - **`kh-variant` CLI** — `gold | silver | toggle | status`. Swaps Ghostty,
   VS Code, Cursor, and the `KH_VARIANT` fish universal var in one shot.
 - **`kh-shader` CLI** — `list | set <name> | toggle | status | auto`. Edits
@@ -60,6 +62,7 @@ What it does:
 
 - Symlinks `themes/*` → `~/.config/ghostty/themes/`
 - Symlinks `shaders/*.glsl` → `~/.config/ghostty/shaders/`
+- Symlinks `assets/*` → `~/.config/ghostty/assets/`
 - Backs up any in-the-way files first (`*.bak.<timestamp>`)
 - Installs `bin/kh-variant` and `bin/kh-shader` → `~/.local/bin/`
 - Does **not** create or modify `~/.config/ghostty/config`
@@ -79,6 +82,11 @@ font-size = 14
 background-opacity = 0.82
 background-blur = 30
 custom-shader = ~/.config/ghostty/shaders/dive-to-heart.glsl
+background-image = ~/.config/ghostty/assets/dive-to-heart-bg.png
+background-image-opacity = 0.22
+background-image-position = center
+background-image-fit = cover
+background-image-repeat = false
 
 # Required if you use kh-fish-theme's Command Menu (Option+Space). Recent
 # Ghostty defaults send ESC+Space, which the fish theme doesn't listen for.
@@ -157,7 +165,7 @@ luminance mask so effects sit behind text rather than on top of it.
 
 | Shader | Mood | Suggested for |
 |--------|------|---------------|
-| `dive-to-heart.glsl` | Drifting starfield + heart-of-light bloom on dark indigo nebula | Default; long sessions |
+| `dive-to-heart.glsl` | Underwater Station of Awakening — oculus light, subtle stained glass, tilted glass floor | Default; long sessions |
 | `destiny-islands.glsl` | Paopu sunset — warm sky, sun, bent palm trunk silhouette, drooping fronds | Warm/peaceful work |
 | `twilight-town.glsl` | Multi-tier clock tower at endless sunset, with rotating clock hands | Reading / contemplative |
 
@@ -165,9 +173,14 @@ Animation is continuous but subtle — designed to live behind text without dist
 
 Switch shader by editing the `custom-shader = …` line in `~/.config/ghostty/config`.
 
+The optional `assets/dive-to-heart-bg.png` backdrop pairs best with
+`dive-to-heart.glsl` at `background-image-opacity` around `0.18`-`0.28`.
+Lower it first if the terminal feels too bright; keep the shader subtle so
+the asset carries the detailed stained-glass texture.
+
 ## Customization
 
-The themes and shaders here are the canonical source. `~/.config/ghostty/`
+The themes, shaders, and assets here are the canonical source. `~/.config/ghostty/`
 contains symlinks back to this repo after install, so you can tweak in place
 and see the effect live (after a Ghostty reload).
 

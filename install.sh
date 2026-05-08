@@ -13,12 +13,14 @@ RAW_URL="https://raw.githubusercontent.com/$REPO/$BRANCH"
 GHOSTTY_DIR="$HOME/.config/ghostty"
 THEMES_DST="$GHOSTTY_DIR/themes"
 SHADERS_DST="$GHOSTTY_DIR/shaders"
+ASSETS_DST="$GHOSTTY_DIR/assets"
 BIN_DIR="$HOME/.local/bin"
 CACHE_DIR="$HOME/.local/share/kh-ghostty-config"
 TS="$(date +%Y%m%d-%H%M%S)"
 
 THEMES=(kh-gold kh-silver)
 SHADERS=(dive-to-heart destiny-islands twilight-town)
+ASSETS=(dive-to-heart-bg.png)
 
 # --- Detect local vs remote mode ---
 LOCAL_MODE=false
@@ -55,7 +57,7 @@ fi
 echo ""
 
 # Ensure target dirs
-mkdir -p "$THEMES_DST" "$SHADERS_DST" "$BIN_DIR"
+mkdir -p "$THEMES_DST" "$SHADERS_DST" "$ASSETS_DST" "$BIN_DIR"
 
 # --- Helpers ---
 
@@ -92,12 +94,15 @@ fetch_to_cache() {
 if [ "$LOCAL_MODE" = false ]; then
   echo "  Installing from GitHub (remote mode)..."
   echo "  Source cache: $CACHE_DIR"
-  mkdir -p "$CACHE_DIR/themes" "$CACHE_DIR/shaders" "$CACHE_DIR/bin"
+  mkdir -p "$CACHE_DIR/themes" "$CACHE_DIR/shaders" "$CACHE_DIR/assets" "$CACHE_DIR/bin"
   for t in "${THEMES[@]}"; do
     fetch_to_cache "themes/$t"
   done
   for s in "${SHADERS[@]}"; do
     fetch_to_cache "shaders/$s.glsl"
+  done
+  for a in "${ASSETS[@]}"; do
+    fetch_to_cache "assets/$a"
   done
   fetch_to_cache "bin/kh-variant"
   fetch_to_cache "bin/kh-shader"
@@ -129,6 +134,20 @@ echo "  Linking shaders..."
 for s in "${SHADERS[@]}"; do
   src="$SRC_ROOT/shaders/$s.glsl"
   dst="$SHADERS_DST/$s.glsl"
+  if [ ! -e "$src" ]; then
+    echo "  WARN: source missing: $src"
+    continue
+  fi
+  backup_if_exists "$dst"
+  ln -sf "$src" "$dst"
+  echo "    $dst → $src"
+done
+
+# --- Assets ---
+echo "  Linking assets..."
+for a in "${ASSETS[@]}"; do
+  src="$SRC_ROOT/assets/$a"
+  dst="$ASSETS_DST/$a"
   if [ ! -e "$src" ]; then
     echo "  WARN: source missing: $src"
     continue
@@ -173,6 +192,10 @@ echo ""
 echo "  Add to ~/.config/ghostty/config (if not already):"
 echo "    theme = kh-gold"
 echo "    custom-shader = ~/.config/ghostty/shaders/dive-to-heart.glsl"
+echo "    background-image = ~/.config/ghostty/assets/dive-to-heart-bg.png"
+echo "    background-image-opacity = 0.22"
+echo "    background-image-position = center"
+echo "    background-image-fit = cover"
 echo "    background-opacity = 0.82"
 echo "    background-blur = 30"
 echo ""
