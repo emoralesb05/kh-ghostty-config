@@ -22,8 +22,24 @@ from pathlib import Path
 HOME = Path.home()
 
 GHOSTTY_CONFIG = HOME / ".config" / "ghostty" / "config"
-VSCODE_SETTINGS = HOME / "Library" / "Application Support" / "Code" / "User" / "settings.json"
-CURSOR_SETTINGS = HOME / "Library" / "Application Support" / "Cursor" / "User" / "settings.json"
+
+
+def _editor_paths() -> tuple[Path, Path, Path, Path]:
+    """Return (vscode_settings, cursor_settings, vscode_extensions, cursor_extensions)
+    for the current platform."""
+    if sys.platform == "darwin":
+        vscode_settings = HOME / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+        cursor_settings = HOME / "Library" / "Application Support" / "Cursor" / "User" / "settings.json"
+    else:
+        # Linux / WSL — XDG paths. Windows isn't supported.
+        vscode_settings = HOME / ".config" / "Code" / "User" / "settings.json"
+        cursor_settings = HOME / ".config" / "Cursor" / "User" / "settings.json"
+    vscode_ext = HOME / ".vscode" / "extensions"
+    cursor_ext = HOME / ".cursor" / "extensions"
+    return vscode_settings, cursor_settings, vscode_ext, cursor_ext
+
+
+VSCODE_SETTINGS, CURSOR_SETTINGS, VSCODE_EXT_DIR, CURSOR_EXT_DIR = _editor_paths()
 
 VARIANTS = {
     "gold": {
@@ -71,7 +87,17 @@ def update_ghostty(variant: str) -> None:
     print(f"  Ghostty: theme = {theme}")
 
 
-def update_editor(name: str, settings_path: Path, variant: str) -> None:
+def kh_vscode_theme_installed(ext_dir: Path) -> bool:
+    """True if any extension directory under ext_dir looks like kh-vscode-theme."""
+    if not ext_dir.is_dir():
+        return False
+    for entry in ext_dir.iterdir():
+        if "kh-vscode-theme" in entry.name.lower():
+            return True
+    return False
+
+
+def update_editor(name: str, settings_path: Path, ext_dir: Path, variant: str) -> None:
     if not settings_path.exists():
         print(f"  {name}: {settings_path} not found, skipping")
         return
@@ -96,6 +122,11 @@ def update_editor(name: str, settings_path: Path, variant: str) -> None:
     backup_once(settings_path)
     settings_path.write_text(new_text)
     print(f'  {name}: workbench.colorTheme = "{theme}"')
+
+    if not kh_vscode_theme_installed(ext_dir):
+        print(f"  {name}: WARNING — kh-vscode-theme extension not detected.")
+        print(f"           Install from https://github.com/emoralesb05/kh-vscode-theme")
+        print(f"           or {name} will warn that '{theme}' is missing.")
 
 
 def update_fish_var(variant: str) -> None:
@@ -138,8 +169,8 @@ def apply(variant: str) -> int:
 
     print(f"Switching to KH {variant.title()}...")
     update_ghostty(variant)
-    update_editor("VS Code", VSCODE_SETTINGS, variant)
-    update_editor("Cursor", CURSOR_SETTINGS, variant)
+    update_editor("VS Code", VSCODE_SETTINGS, VSCODE_EXT_DIR, variant)
+    update_editor("Cursor", CURSOR_SETTINGS, CURSOR_EXT_DIR, variant)
     update_fish_var(variant)
     print("")
     print("  Reload Ghostty: press cmd+shift+,")
