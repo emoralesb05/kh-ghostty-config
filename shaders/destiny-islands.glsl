@@ -1,186 +1,127 @@
-// Ghostty custom shader — "Destiny Islands"
-// Inspired by the iconic KH3 ending shot: the bent paopu palm trunk
-// crossing the frame at sunset, with the sun a bright disc at the horizon
-// and palm fronds drooping in from the top-left corner.
-//
-// Composition (in y=0-bottom coordinates after the flip below):
-//   • Sky gradient — warm at horizon, magenta toward the top
-//   • Atmospheric glow — sky brightens radially around the sun
-//   • Sun disc — Gaussian-soft bright spot just above the horizon
-//   • Sea — dim warm-purple gradient
-//   • Sun reflection — vertical bright band on water below the sun
-//   • Trunk — thick bent quadratic bezier crossing from upper-right to
-//     lower-left, the dominant structural silhouette
-//   • Frond drape — 4 thin curved fronds drooping from the top-left
-//     corner, framing the upper edge
+// Ghostty custom shader - "Destiny Islands"
+// Subtle animated sunset/ocean layer for the Destiny Islands background.
+// The bitmap carries the island; this shader only adds motion and text bloom.
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-// Distance from point p to segment a → b
-float segDist(vec2 p, vec2 a, vec2 b) {
-    vec2 pa = p - a;
-    vec2 ba = b - a;
-    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
-    return length(pa - ba * h);
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-// Distance from p to a quadratic bezier (a → c → b), polyline-approximated.
-float bezierDist(vec2 p, vec2 a, vec2 c, vec2 b) {
-    float minD = 1e9;
-    vec2 prev = a;
-    for (int i = 1; i <= 24; i++) {
-        float t = float(i) / 24.0;
-        float u = 1.0 - t;
-        vec2 curr = u * u * a + 2.0 * u * t * c + t * t * b;
-        minD = min(minD, segDist(p, prev, curr));
-        prev = curr;
-    }
-    return minD;
+float gaussian(float x, float width) {
+    float d = x / width;
+    return exp(-(d * d));
+}
+
+float sparkle(vec2 uv, float density, float threshold, float speed) {
+    vec2 grid = floor(uv * density);
+    vec2 cell = fract(uv * density) - 0.5;
+    float h = hash(grid);
+
+    float d = length(cell);
+    float core = 1.0 - smoothstep(0.020, 0.065, d);
+    float glow = (1.0 - smoothstep(0.065, 0.220, d)) * 0.20;
+    float twinkle = 0.45 + 0.55 * sin(iTime * speed + h * 6.2831853);
+    return (core + glow) * twinkle * step(threshold, h);
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord.xy / iResolution.xy;
     vec4 term = texture(iChannel0, uv);
 
-    // Ghostty's UV origin is top-left. Flip y so the rest of this shader can
-    // use uv.y = 0 at the bottom (sky high, sea low — the natural mental model).
-    uv.y = 1.0 - uv.y;
+    const float sceneOpacity = 0.46;
+    const float textBloom = 0.22;
 
-    const float horizonY = 0.34;
-    vec2  sunPos = vec2(0.50, horizonY + 0.045);  // just above horizon
+    float aspectX = iResolution.x / iResolution.y;
+    vec2 aspect = vec2(aspectX, 1.0);
 
-    // Aspect-corrected distance from the sun, so the disc reads as round.
-    vec2  sunDelta       = (uv - sunPos) * vec2(iResolution.x / iResolution.y, 1.0);
-    float sunDistAspect  = length(sunDelta);
+    vec3 gold = vec3(1.00, 0.82, 0.36);
+    vec3 amber = vec3(1.00, 0.50, 0.16);
+    vec3 coral = vec3(0.92, 0.28, 0.24);
+    vec3 rose = vec3(0.58, 0.16, 0.25);
+    vec3 leaf = vec3(0.36, 0.62, 0.18);
+    vec3 deep = vec3(0.040, 0.014, 0.018);
 
-    // ── Sky base gradient ──
-    // Warm at the horizon, magenta toward the top. Kept dim so the sun and
-    // its glow read as the bright elements.
-    vec3 skyHorizon = vec3(0.110, 0.045, 0.025);
-    vec3 skyMid     = vec3(0.075, 0.025, 0.030);
-    vec3 skyTop     = vec3(0.030, 0.010, 0.045);
+    vec3 scene = vec3(0.0);
 
-    float skyT = clamp((uv.y - horizonY) / (1.0 - horizonY), 0.0, 1.0);
-    vec3 sky = mix(skyHorizon, skyMid, smoothstep(0.0, 0.40, skyT));
-    sky      = mix(sky,        skyTop, smoothstep(0.40, 1.00, skyT));
+    // The source image's sun sits low on the right. Keep the pulse broad so it
+    // still lines up when Ghostty crops the image to different window ratios.
+    vec2 sunPos = vec2(0.905, 0.565);
+    vec2 sunP = (uv - sunPos) * aspect;
+    float sunDist = length(sunP);
+    float sunPulse = 0.86 + 0.14 * sin(iTime * 0.18);
+    float sunHalo = gaussian(sunDist, 0.235);
+    float sunCore = gaussian(sunDist, 0.075);
+    scene += mix(amber, gold, 0.56) * sunHalo * sunPulse * 0.235;
+    scene += vec3(1.00, 0.92, 0.62) * sunCore * sunPulse * 0.130;
 
-    // ── Atmospheric glow around the sun ──
-    // The sky brightens radially toward the sun. Larger falloff than the disc
-    // so it bleeds into a soft warm halo across most of the upper sky.
-    float atmosphere = exp(-pow(sunDistAspect / 0.32, 2.0));
-    vec3  atmCol     = vec3(0.55, 0.30, 0.10);   // warm orange wash
-    sky += atmCol * atmosphere * 0.55;
+    // Slow sunset rays through the open sky.
+    float rayAngle = atan(sunP.y, sunP.x);
+    float rays = 0.5 + 0.5 * sin(rayAngle * 9.0 + iTime * 0.20 + sunDist * 3.5);
+    rays = smoothstep(0.64, 0.96, rays);
+    float skyMask = (1.0 - smoothstep(0.64, 0.92, uv.y))
+                  * smoothstep(0.28, 0.96, uv.x)
+                  * smoothstep(0.08, 0.32, sunDist);
+    scene += mix(gold, coral, 0.35) * rays * sunHalo * skyMask * 0.125;
 
-    // ── Sea base gradient ──
-    vec3 seaTop  = vec3(0.060, 0.020, 0.030);    // just below horizon
-    vec3 seaDeep = vec3(0.012, 0.005, 0.018);    // far below, near-black
-    float seaT = clamp((horizonY - uv.y) / horizonY, 0.0, 1.0);
-    vec3 sea = mix(seaTop, seaDeep, smoothstep(0.0, 0.85, seaT));
+    // Painterly cloud warmth that drifts almost imperceptibly.
+    float cloudA = noise(vec2(uv.x * 3.1 + iTime * 0.010, uv.y * 10.0));
+    float cloudB = noise(vec2(uv.x * 5.4 - iTime * 0.007, uv.y * 15.0));
+    float cloudBand = smoothstep(0.48, 0.84, cloudA * 0.70 + cloudB * 0.30)
+                    * (1.0 - smoothstep(0.58, 0.80, uv.y));
+    scene += mix(rose, amber, smoothstep(0.20, 0.95, uv.x)) * cloudBand * 0.095;
 
-    // ── Sun reflection on the water ──
-    // Vertical bright band centered horizontally on the sun, brightest at the
-    // horizon, fading toward the bottom of the screen, with subtle shimmer.
-    float dx               = abs(uv.x - sunPos.x);
-    float reflectionWidth  = exp(-pow(dx / 0.080, 2.0));
-    float reflectionVert   = smoothstep(0.04, horizonY - 0.005, uv.y);
-    float shimmer = 0.78
-                  + 0.16 * sin(uv.y * 55.0 + iTime * 0.40)
-                  + 0.10 * sin(uv.y * 22.0 - iTime * 0.65);
-    float reflection = reflectionWidth * reflectionVert * shimmer;
-    sea += vec3(0.95, 0.62, 0.18) * reflection * 0.65;
+    // Golden reflection and water bands on the lower-right ocean.
+    float waterMask = smoothstep(0.58, 0.76, uv.y);
+    float reflection = gaussian((uv.x - 0.875) * aspectX, 0.230)
+                     * waterMask
+                     * (1.0 - smoothstep(0.98, 1.0, uv.y));
+    float shimmer = 0.50
+                  + 0.30 * sin(uv.y * 96.0 + iTime * 0.72 + sin(uv.x * 18.0) * 0.8)
+                  + 0.20 * sin(uv.y * 37.0 - iTime * 0.46);
+    shimmer = clamp(shimmer, 0.0, 1.0);
+    scene += mix(gold, amber, 0.35) * reflection * (0.120 + 0.150 * shimmer);
 
-    // Soft horizon blend (sky ↔ sea) — replaces a hard step() so the boundary
-    // doesn't read as a single sharp line.
-    float horizonBlend = 1.0 - smoothstep(horizonY - 0.014, horizonY + 0.014, uv.y);
-    vec3  backdrop = mix(sky, sea, horizonBlend);
+    float seaLine = gaussian(uv.y - 0.820, 0.085)
+                  * smoothstep(0.12, 0.95, uv.x);
+    float seaWave = 0.5 + 0.5 * sin(uv.x * 52.0 + uv.y * 18.0 + iTime * 0.44);
+    scene += mix(amber, coral, 0.40) * seaLine * seaWave * 0.058;
 
-    // Atmospheric haze right at the horizon — a thin warm band that sits in
-    // both sky and sea, simulating the way distant atmosphere fogs out the
-    // sea/sky boundary in real sunset photographs.
-    float horizonHaze = exp(-pow((uv.y - horizonY) * 55.0, 2.0));
-    backdrop += vec3(0.18, 0.10, 0.04) * horizonHaze * 0.40;
+    // Small glints on the reflection path. Sparse enough to avoid a particle
+    // field, but visible when the terminal is idle.
+    float glints = sparkle(uv * vec2(1.7, 1.0) + vec2(iTime * 0.002, 0.0),
+                           78.0, 0.987, 1.05);
+    scene += vec3(1.00, 0.92, 0.58) * glints * reflection * 0.280;
 
-    // ── Sun disc ──
-    // Gaussian core + soft halo. Gentle pulse so it feels alive.
-    // Brightness toned down ~30% from v5 — the disc is still clearly the
-    // brightest element but no longer dominates against text.
-    float sunCore  = exp(-pow(sunDistAspect / 0.038, 2.0)) * 0.68;
-    float sunOuter = exp(-pow(sunDistAspect / 0.090, 2.0)) * 0.32;
-    float sunPulse = 0.85 + 0.15 * sin(iTime * 0.40);
-    vec3  sunCol   = vec3(1.00, 0.90, 0.55);
-    backdrop += sunCol * sunPulse * (sunCore + sunOuter);
+    // A faint green-gold leaf shimmer near the paopu palm canopy on the right.
+    float leafMask = smoothstep(0.55, 0.86, uv.x)
+                   * (1.0 - smoothstep(0.98, 1.0, uv.x))
+                   * smoothstep(0.30, 0.46, uv.y)
+                   * (1.0 - smoothstep(0.62, 0.78, uv.y));
+    float leafNoise = noise(vec2(uv.x * 18.0 + iTime * 0.030, uv.y * 28.0));
+    float leafBreath = 0.78 + 0.22 * sin(iTime * 0.24);
+    scene += leaf * smoothstep(0.52, 0.90, leafNoise) * leafMask * leafBreath * 0.090;
 
-    // ── Bent paopu trunk (the hero element) ──
-    // Thick quadratic bezier from off-screen upper-right curving down through
-    // the middle of the frame and exiting off-screen lower-left. This is the
-    // dominant silhouette — it claims the lower-mid portion of the frame.
-    vec2 trunkA = vec2(1.10, 0.58);    // off-screen upper-right entry
-    vec2 trunkC = vec2(0.55, 0.36);    // control: bows down/left
-    vec2 trunkB = vec2(-0.05, 0.30);   // off-screen lower-left exit
+    // Keep the left treehouse mass and corners tucked back for terminal text.
+    float leftShade = (1.0 - smoothstep(0.22, 0.56, uv.x))
+                    * smoothstep(0.34, 0.96, uv.y);
+    float edgeShade = smoothstep(0.16, 0.58, abs(uv.x - 0.5));
+    scene -= deep * (leftShade * 0.24 + edgeShade * 0.10);
 
-    float trunkD = bezierDist(uv, trunkA, trunkC, trunkB);
-    // Thick — visible behind the sun. Soft edge so it doesn't alias.
-    float trunkMask = smoothstep(0.055, 0.040, trunkD);
+    float lum = dot(term.rgb, vec3(0.299, 0.587, 0.114));
+    float bgMask = 1.0 - smoothstep(0.08, 0.52, lum);
+    vec3 bloom = term.rgb * smoothstep(0.45, 1.0, lum) * textBloom;
 
-    // Pure-black silhouette
-    backdrop = mix(backdrop, vec3(0.0), trunkMask);
-
-    // ── Top-left frond drape ──
-    // 5 leaf-shaped fronds drooping from the upper-left corner. Each is an
-    // elongated silhouette (wider in the middle, tapering at both ends) with
-    // subtle internal banding to hint at leaflet ridges — so they read as
-    // *leaves*, not as twigs.
-    float frondMask = 0.0;
-    for (int i = 0; i < 5; i++) {
-        float fi = float(i);
-
-        // Anchor near the top-left, with slight horizontal scatter.
-        vec2 base = vec2(-0.04 + fi * 0.022, 1.04);
-
-        // Each frond drapes downward at an angle from "almost straight down"
-        // to "down-and-right" — mimicking the way a palm crown hangs from
-        // off-screen above. Subtle sway via sin(iTime + fi).
-        float angle    = -1.50 + fi * 0.30 + 0.05 * sin(iTime * 0.32 + fi);
-        float frondLen = 0.22  + 0.05 * hash(vec2(fi, 7.7));
-        vec2  tip      = base + vec2(cos(angle), sin(angle)) * frondLen;
-
-        float halfWidth = 0.022 + 0.006 * hash(vec2(fi, 11.3));
-
-        // Local frame along the frond
-        vec2 dir   = tip - base;
-        vec2 dirN  = dir / frondLen;
-        vec2 perpN = vec2(-dirN.y, dirN.x);
-
-        vec2  d     = uv - base;
-        float along = dot(d, dirN);
-        float perpD = abs(dot(d, perpN));
-
-        float t            = clamp(along / frondLen, 0.0, 1.0);
-        float withinLength = step(0.0, along) * step(along, frondLen);
-
-        // Width at this position: pow(sin) keeps the leaf "fat" through the
-        // middle and tapered to nothing at both ends.
-        float widthCurve        = pow(sin(t * 3.14159), 0.45);
-        float currentHalfWidth  = halfWidth * widthCurve;
-
-        // Faint leaflet ridges — small modulation along the leaf so it's not
-        // a featureless oval. (10–15% amplitude only.)
-        float ridges = 0.88 + 0.12 * sin(along * 110.0 + fi * 2.0);
-
-        float singleFrond = smoothstep(currentHalfWidth, currentHalfWidth - 0.003, perpD)
-                          * withinLength
-                          * ridges;
-        frondMask = max(frondMask, singleFrond);
-    }
-    backdrop = mix(backdrop, vec3(0.0), frondMask);
-
-    // ── Compositing (matches dive-to-heart) ──
-    float lum    = dot(term.rgb, vec3(0.299, 0.587, 0.114));
-    float bgMask = 1.0 - smoothstep(0.05, 0.25, lum);
-    vec3  bloom  = term.rgb * smoothstep(0.45, 1.0, lum) * 0.35;
-
-    vec3 col = term.rgb + backdrop * bgMask + bloom;
+    vec3 col = term.rgb + scene * bgMask * sceneOpacity + bloom;
     fragColor = vec4(col, 1.0);
 }

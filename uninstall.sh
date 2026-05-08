@@ -12,7 +12,7 @@ CACHE_DIR="$HOME/.local/share/kh-ghostty-config"
 
 THEMES=(kh-gold kh-silver)
 SHADERS=(dive-to-heart destiny-islands twilight-town)
-ASSETS=(dive-to-heart-bg.png twilight-town-bg.png)
+ASSETS=(dive-to-heart-bg.png destiny-islands-bg.png twilight-town-bg.png)
 
 echo ""
 echo "  === kh-ghostty-config uninstaller ==="

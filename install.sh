@@ -20,7 +20,7 @@ TS="$(date +%Y%m%d-%H%M%S)"
 
 THEMES=(kh-gold kh-silver)
 SHADERS=(dive-to-heart destiny-islands twilight-town)
-ASSETS=(dive-to-heart-bg.png twilight-town-bg.png)
+ASSETS=(dive-to-heart-bg.png destiny-islands-bg.png twilight-town-bg.png)
 
 # --- Detect local vs remote mode ---
 LOCAL_MODE=false
@@ -193,7 +193,7 @@ echo "  Add to ~/.config/ghostty/config (if not already):"
 echo "    theme = kh-gold"
 echo "    custom-shader = ~/.config/ghostty/shaders/dive-to-heart.glsl"
 echo "    background-image = ~/.config/ghostty/assets/dive-to-heart-bg.png"
-echo "    background-image-opacity = 0.22"
+echo "    background-image-opacity = 0.14"
 echo "    background-image-position = center"
 echo "    background-image-fit = cover"
 echo "    background-opacity = 0.82"

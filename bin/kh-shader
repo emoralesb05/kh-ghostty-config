@@ -40,6 +40,7 @@ USAGE = "Usage: kh-shader {list|status|set <name>|toggle|auto}"
 
 SHADER_TO_BACKGROUND = {
     "dive-to-heart": "dive-to-heart-bg.png",
+    "destiny-islands": "destiny-islands-bg.png",
     "twilight-town": "twilight-town-bg.png",
 }
 
@@ -51,6 +52,7 @@ BACKGROUND_SETTINGS = {
 
 SHADER_BACKGROUND_OPACITY = {
     "dive-to-heart": "0.14",
+    "destiny-islands": "0.14",
     "twilight-town": "0.14",
 }
 

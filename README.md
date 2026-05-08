@@ -18,7 +18,8 @@ Ghostty, VS Code, Cursor, and your fish shell in sync.
   All preserve text legibility via terminal-luminance masking and are tuned
   for use with `background-opacity` around 0.82.
 - **World backdrops** — optional `background-image` assets for Dive to the
-  Heart and Twilight Town, with `kh-shader` switching the matching image.
+  Heart, Destiny Islands, and Twilight Town, with `kh-shader` switching the
+  matching image.
 - **`kh-variant` CLI** — `gold | silver | toggle | status`. Swaps Ghostty,
   VS Code, Cursor, and the `KH_VARIANT` fish universal var in one shot.
 - **`kh-shader` CLI** — `list | set <name> | toggle | status | auto`. Edits
@@ -83,7 +84,7 @@ background-opacity = 0.82
 background-blur = 30
 custom-shader = ~/.config/ghostty/shaders/dive-to-heart.glsl
 background-image = ~/.config/ghostty/assets/dive-to-heart-bg.png
-background-image-opacity = 0.22
+background-image-opacity = 0.14
 background-image-position = center
 background-image-fit = cover
 background-image-repeat = false
@@ -166,7 +167,7 @@ luminance mask so effects sit behind text rather than on top of it.
 | Shader | Mood | Suggested for |
 |--------|------|---------------|
 | `dive-to-heart.glsl` | Underwater Station of Awakening — oculus light, subtle stained glass, tilted glass floor | Default; long sessions |
-| `destiny-islands.glsl` | Paopu sunset — warm sky, sun, bent palm trunk silhouette, drooping fronds | Warm/peaceful work |
+| `destiny-islands.glsl` | Destiny Islands sunset — paopu palm, warm sky rays, ocean shimmer | Warm/peaceful work |
 | `twilight-town.glsl` | Twilight Town clock tower at sunset, with subtle cloud drift and clock glow | Reading / contemplative |
 
 Animation is continuous but subtle — designed to live behind text without distracting.
@@ -174,12 +175,13 @@ Animation is continuous but subtle — designed to live behind text without dist
 Switch shader by editing the `custom-shader = …` line in `~/.config/ghostty/config`.
 
 The optional backdrops pair best with `background-image-opacity` around
-`0.18`-`0.28`. Lower it first if the terminal feels too bright; keep the
+`0.14`-`0.22`. Lower it first if the terminal feels too bright; keep the
 shader subtle so the asset carries the detailed world texture.
 
 | Shader | Matching backdrop |
 |--------|-------------------|
 | `dive-to-heart.glsl` | `assets/dive-to-heart-bg.png` |
+| `destiny-islands.glsl` | `assets/destiny-islands-bg.png` |
 | `twilight-town.glsl` | `assets/twilight-town-bg.png` |
 
 `kh-shader set <name>`, `toggle`, and `auto` update both `custom-shader` and
