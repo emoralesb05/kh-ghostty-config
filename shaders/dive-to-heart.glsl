@@ -60,7 +60,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     scene += mix(indigo, aqua, uv.y) * veil * 0.048;
 
     // Animated shaft aligned with the falling light in the KH image.
-    vec2 oculusPos = vec2(0.50, 0.000);
     float yFromOculus = clamp(uv.y / 0.72, 0.0, 1.0);
     float shaftVertical = (1.0 - smoothstep(0.66, 0.96, yFromOculus));
     float shaftCenter = 0.5 + 0.010 * sin(uv.y * 8.0 + iTime * 0.075);

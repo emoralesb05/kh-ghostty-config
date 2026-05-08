@@ -168,11 +168,12 @@ luminance mask so effects sit behind text rather than on top of it.
 |--------|------|---------------|
 | `dive-to-heart.glsl` | Underwater Station of Awakening — oculus light, subtle stained glass, tilted glass floor | Default; long sessions |
 | `destiny-islands.glsl` | Destiny Islands sunset — paopu palm, warm sky rays, ocean shimmer | Warm/peaceful work |
-| `twilight-town.glsl` | Twilight Town clock tower at sunset, with subtle cloud drift and clock glow | Reading / contemplative |
+| `twilight-town.glsl` | Twilight Town clock tower at sunset — left-pinned tower, golden dust, tram glints | Reading / contemplative |
 
 Animation is continuous but subtle — designed to live behind text without distracting.
 
-Switch shader by editing the `custom-shader = …` line in `~/.config/ghostty/config`.
+Switch shaders with `kh-shader set <name>` so the matching backdrop and fit
+settings stay in sync.
 
 The optional backdrops pair best with `background-image-opacity` around
 `0.14`-`0.22`. Lower it first if the terminal feels too bright; keep the

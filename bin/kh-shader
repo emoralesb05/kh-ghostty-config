@@ -120,7 +120,7 @@ def write_active(basename: str) -> None:
             text = set_config_line(
                 text,
                 "background-image-opacity",
-                SHADER_BACKGROUND_OPACITY.get(basename, "0.22"),
+                SHADER_BACKGROUND_OPACITY.get(basename, "0.14"),
             )
             settings = {
                 **DEFAULT_BACKGROUND_SETTINGS,
