@@ -23,6 +23,24 @@ that names your terminal after a KH world.
   using [kh-fish-theme](https://github.com/emoralesb05/kh-fish-theme)'s world
   detection if present, or falling back to a small inline detector.
 
+## Prerequisites
+
+**Required:**
+
+- **macOS** — `kh-variant` uses macOS-specific paths for VS Code and Cursor settings. Linux/Windows aren't supported yet (PRs welcome).
+- [**Ghostty**](https://ghostty.org/) — any recent version with `custom-shader` and `themes/` directory support.
+- **Python 3** — used by `kh-variant`. Already present on macOS by default.
+
+**Optional companions** — install whichever you want; the installer doesn't require any of them:
+
+| Tool | What you get without it |
+|------|-------------------------|
+| [Fish shell](https://fishshell.com/) | The title hook (`fish/kh_ghostty_world_title.fish`) only runs in fish. Other shells just won't see it. |
+| [VS Code](https://code.visualstudio.com/) | `kh-variant` skips the VS Code update with a friendly message. |
+| [Cursor](https://cursor.sh/) | `kh-variant` skips the Cursor update with a friendly message. |
+| [kh-vscode-theme](https://github.com/emoralesb05/kh-vscode-theme) | Without it installed, `kh-variant gold/silver` will set `workbench.colorTheme` to `"KH Gold (Subtle)"` — VS Code/Cursor will warn that the theme is missing. **Install this if you plan to use `kh-variant`.** |
+| [kh-fish-theme](https://github.com/emoralesb05/kh-fish-theme) | The fish title hook falls back to its own (less rich) inline world detector instead of using `__fish_kh_detect_world`. |
+
 ## Install
 
 One-liner (curl):
