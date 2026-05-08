@@ -1,0 +1,23 @@
+# Aligned with kh-vscode-theme/themes/kh-gold-color-theme.json
+background      = #09070F
+foreground      = #F7F1E2
+cursor-color    = #F3C76E
+selection-background = #244E96
+selection-foreground = #FFFFFF
+
+palette = 0=#1A1624
+palette = 1=#FF6B7A
+palette = 2=#49D18D
+palette = 3=#DAB878
+palette = 4=#214F9D
+palette = 5=#8C7DA1
+palette = 6=#7FD3FF
+palette = 7=#C9D6E8
+palette = 8=#6E7485
+palette = 9=#FF6B7A
+palette = 10=#8CF0C8
+palette = 11=#F3C76E
+palette = 12=#60A5FA
+palette = 13=#C9A6FF
+palette = 14=#8EEBFF
+palette = 15=#F7F1E2

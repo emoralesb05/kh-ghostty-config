@@ -1,0 +1,23 @@
+# Aligned with kh-vscode-theme/themes/kh-silver-color-theme.json
+background      = #0C1018
+foreground      = #F4F8FF
+cursor-color    = #C9EEFF
+selection-background = #2D4576
+selection-foreground = #FFFFFF
+
+palette = 0=#1B2538
+palette = 1=#FF6B7A
+palette = 2=#49D18D
+palette = 3=#F8C169
+palette = 4=#60A5FA
+palette = 5=#D6C2FF
+palette = 6=#8AD8FF
+palette = 7=#CFDAED
+palette = 8=#7C8BA5
+palette = 9=#FF7A90
+palette = 10=#8CF0C8
+palette = 11=#FFD84D
+palette = 12=#93B4E9
+palette = 13=#D6C2FF
+palette = 14=#C9EEFF
+palette = 15=#FFFFFF

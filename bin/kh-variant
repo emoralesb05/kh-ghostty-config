@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""
+kh-variant — switch between KH Gold and KH Silver across Ghostty, VS Code,
+Cursor, and the KH_VARIANT fish universal var in one shot.
+
+Usage:
+    kh-variant gold     # → KH Gold
+    kh-variant silver   # → KH Silver
+    kh-variant toggle   # → flip whichever is active
+    kh-variant status   # → which is active right now
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HOME = Path.home()
+
+GHOSTTY_CONFIG = HOME / ".config" / "ghostty" / "config"
+VSCODE_SETTINGS = HOME / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+CURSOR_SETTINGS = HOME / "Library" / "Application Support" / "Cursor" / "User" / "settings.json"
+
+VARIANTS = {
+    "gold": {
+        "ghostty_theme": "kh-gold",
+        "editor_theme": "KH Gold (Subtle)",
+    },
+    "silver": {
+        "ghostty_theme": "kh-silver",
+        "editor_theme": "KH Silver (Subtle)",
+    },
+}
+
+USAGE = "Usage: kh-variant {gold|silver|toggle|status}"
+
+
+def detect_current() -> str | None:
+    """Read the active variant from Ghostty's config. Returns 'gold', 'silver', or None."""
+    if not GHOSTTY_CONFIG.exists():
+        return None
+    text = GHOSTTY_CONFIG.read_text()
+    m = re.search(r"^\s*theme\s*=\s*(kh-gold|kh-silver)\s*$", text, re.MULTILINE)
+    if not m:
+        return None
+    return "gold" if m.group(1) == "kh-gold" else "silver"
+
+
+def update_ghostty(variant: str) -> None:
+    theme = VARIANTS[variant]["ghostty_theme"]
+    if not GHOSTTY_CONFIG.exists():
+        print(f"  Ghostty: {GHOSTTY_CONFIG} not found, skipping")
+        return
+
+    text = GHOSTTY_CONFIG.read_text()
+    new_line = f"theme = {theme}"
+
+    if re.search(r"^\s*theme\s*=", text, re.MULTILINE):
+        text = re.sub(r"^\s*theme\s*=.*$", new_line, text, count=1, flags=re.MULTILINE)
+    else:
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += new_line + "\n"
+
+    backup_once(GHOSTTY_CONFIG)
+    GHOSTTY_CONFIG.write_text(text)
+    print(f"  Ghostty: theme = {theme}")
+
+
+def update_editor(name: str, settings_path: Path, variant: str) -> None:
+    if not settings_path.exists():
+        print(f"  {name}: {settings_path} not found, skipping")
+        return
+
+    theme = VARIANTS[variant]["editor_theme"]
+    text = settings_path.read_text()
+
+    # VS Code / Cursor settings.json is JSONC — preserve comments by editing as text.
+    pattern = r'("workbench\.colorTheme"\s*:\s*)"[^"]*"'
+    if re.search(pattern, text):
+        new_text = re.sub(pattern, rf'\1"{theme}"', text, count=1)
+    else:
+        # Insert near the top of the outer object.
+        m = re.search(r"\{", text)
+        if not m:
+            print(f"  {name}: could not parse settings, skipping")
+            return
+        insert_at = m.end()
+        insertion = f'\n  "workbench.colorTheme": "{theme}",'
+        new_text = text[:insert_at] + insertion + text[insert_at:]
+
+    backup_once(settings_path)
+    settings_path.write_text(new_text)
+    print(f'  {name}: workbench.colorTheme = "{theme}"')
+
+
+def update_fish_var(variant: str) -> None:
+    fish = shutil.which("fish")
+    if not fish:
+        print("  fish: not found on PATH, skipping universal var")
+        return
+    try:
+        subprocess.run(
+            [fish, "-c", f"set -Ux KH_VARIANT {variant}"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print(f"  fish: set -Ux KH_VARIANT {variant}")
+    except subprocess.CalledProcessError:
+        print("  fish: failed to set universal var")
+
+
+def backup_once(path: Path) -> None:
+    """Create a single sticky backup of a file before kh-variant first edits it."""
+    sentinel = path.with_suffix(path.suffix + ".kh-variant-orig")
+    if not sentinel.exists():
+        shutil.copy2(path, sentinel)
+
+
+def cmd_status() -> int:
+    current = detect_current()
+    if current is None:
+        print("active: unknown (no kh-* theme line in Ghostty config)")
+        return 1
+    print(f"active: {current}")
+    return 0
+
+
+def apply(variant: str) -> int:
+    if variant not in VARIANTS:
+        print(USAGE, file=sys.stderr)
+        return 2
+
+    print(f"Switching to KH {variant.title()}...")
+    update_ghostty(variant)
+    update_editor("VS Code", VSCODE_SETTINGS, variant)
+    update_editor("Cursor", CURSOR_SETTINGS, variant)
+    update_fish_var(variant)
+    print("")
+    print("  Reload Ghostty: press cmd+shift+,")
+    print("  (VS Code / Cursor pick up the change automatically.)")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print(USAGE, file=sys.stderr)
+        return 2
+
+    arg = argv[1].lower()
+    if arg == "status":
+        return cmd_status()
+    if arg == "toggle":
+        current = detect_current()
+        if current is None:
+            print("Cannot toggle: active variant unknown. Run `kh-variant gold` or `kh-variant silver` to set one.", file=sys.stderr)
+            return 1
+        return apply("silver" if current == "gold" else "gold")
+    if arg in VARIANTS:
+        return apply(arg)
+
+    print(USAGE, file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
