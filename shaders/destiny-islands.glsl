@@ -82,15 +82,27 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     scene += mix(rose, amber, smoothstep(0.20, 0.95, uv.x)) * cloudBand * 0.095;
 
     // Golden reflection and water bands on the lower-right ocean.
+    float waterDepth = smoothstep(0.58, 0.96, uv.y);
     float waterMask = smoothstep(0.58, 0.76, uv.y);
-    float reflection = gaussian((uv.x - 0.875) * aspectX, 0.230)
+    float reflectionPulse = 0.82 + 0.18 * sin(iTime * 0.16);
+    float reflectionWidth = mix(0.150, 0.295, waterDepth);
+    float reflection = gaussian((uv.x - 0.875) * aspectX, reflectionWidth)
                      * waterMask
-                     * (1.0 - smoothstep(0.98, 1.0, uv.y));
+                     * (1.0 - smoothstep(0.98, 1.0, uv.y))
+                     * reflectionPulse;
     float shimmer = 0.50
-                  + 0.30 * sin(uv.y * 96.0 + iTime * 0.72 + sin(uv.x * 18.0) * 0.8)
-                  + 0.20 * sin(uv.y * 37.0 - iTime * 0.46);
+                  + 0.30 * sin(uv.y * 118.0 + iTime * 0.72 + sin(uv.x * 18.0) * 0.8)
+                  + 0.20 * sin(uv.y * 48.0 - iTime * 0.46);
     shimmer = clamp(shimmer, 0.0, 1.0);
     scene += mix(gold, amber, 0.35) * reflection * (0.120 + 0.150 * shimmer);
+
+    float waveLanes = 0.5 + 0.5 * sin(uv.y * 155.0
+                                    + sin(uv.x * 22.0 + iTime * 0.18) * 1.2
+                                    - iTime * 0.82);
+    scene += mix(gold, coral, 0.24)
+           * reflection
+           * smoothstep(0.68, 0.98, waveLanes)
+           * 0.060;
 
     float seaLine = gaussian(uv.y - 0.820, 0.085)
                   * smoothstep(0.12, 0.95, uv.x);
@@ -111,6 +123,19 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float leafNoise = noise(vec2(uv.x * 18.0 + iTime * 0.030, uv.y * 28.0));
     float leafBreath = 0.78 + 0.22 * sin(iTime * 0.24);
     scene += leaf * smoothstep(0.52, 0.90, leafNoise) * leafMask * leafBreath * 0.090;
+
+    vec2 leafP = (uv - vec2(0.735, 0.510)) * aspect;
+    float leafHalo = gaussian(length(leafP), 0.150) * leafMask;
+    scene += mix(leaf, gold, 0.35) * leafHalo * leafBreath * 0.055;
+
+    // Late-sunset dust near the island silhouette, sparse and slow.
+    float dustMask = smoothstep(0.25, 0.70, uv.x)
+                   * (1.0 - smoothstep(0.93, 1.0, uv.x))
+                   * smoothstep(0.45, 0.62, uv.y)
+                   * (1.0 - smoothstep(0.80, 0.94, uv.y));
+    float duskDust = sparkle(uv * vec2(1.3, 1.0) + vec2(0.0, -iTime * 0.002),
+                             52.0, 0.992, 0.70);
+    scene += mix(gold, coral, 0.30) * duskDust * dustMask * 0.085;
 
     // Keep the left treehouse mass and corners tucked back for terminal text.
     float leftShade = (1.0 - smoothstep(0.22, 0.56, uv.x))

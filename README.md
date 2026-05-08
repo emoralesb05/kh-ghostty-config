@@ -185,8 +185,10 @@ shader subtle so the asset carries the detailed world texture.
 | `twilight-town.glsl` | `assets/twilight-town-bg.png` |
 
 `kh-shader set <name>`, `toggle`, and `auto` update both `custom-shader` and
-the matching `background-image` when one exists. Shaders without a bundled
-backdrop clear the background-image settings.
+the matching `background-image` when one exists. Dive and Destiny use centered
+`cover`; Twilight uses `cover` pinned to `center-left` so the clock tower stays
+in frame in narrow terminal windows. Shaders without a bundled backdrop clear
+the background-image settings.
 
 ## Customization
 

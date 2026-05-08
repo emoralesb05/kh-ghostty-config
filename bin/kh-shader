@@ -44,10 +44,18 @@ SHADER_TO_BACKGROUND = {
     "twilight-town": "twilight-town-bg.png",
 }
 
-BACKGROUND_SETTINGS = {
+DEFAULT_BACKGROUND_SETTINGS = {
     "background-image-position": "center",
     "background-image-fit": "cover",
     "background-image-repeat": "false",
+}
+
+SHADER_BACKGROUND_SETTINGS = {
+    # The clock tower is a left-side subject; anchoring left keeps it visible
+    # in narrow terminal windows while preserving a full-bleed cover image.
+    "twilight-town": {
+        "background-image-position": "center-left",
+    },
 }
 
 SHADER_BACKGROUND_OPACITY = {
@@ -114,12 +122,16 @@ def write_active(basename: str) -> None:
                 "background-image-opacity",
                 SHADER_BACKGROUND_OPACITY.get(basename, "0.22"),
             )
-            for key, value in BACKGROUND_SETTINGS.items():
+            settings = {
+                **DEFAULT_BACKGROUND_SETTINGS,
+                **SHADER_BACKGROUND_SETTINGS.get(basename, {}),
+            }
+            for key, value in settings.items():
                 text = set_config_line(text, key, value)
         else:
             print(f"  Background image not found: {ASSET_DIR / background}", file=sys.stderr)
     else:
-        for key in ("background-image", "background-image-opacity", *BACKGROUND_SETTINGS.keys()):
+        for key in ("background-image", "background-image-opacity", *DEFAULT_BACKGROUND_SETTINGS.keys()):
             text = remove_config_line(text, key)
 
     backup_once(GHOSTTY_CONFIG)

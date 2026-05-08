@@ -47,6 +47,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     vec3 paleBlue = vec3(0.58, 0.86, 1.00);
     vec3 aqua = vec3(0.10, 0.72, 0.82);
+    vec3 glassViolet = vec3(0.50, 0.24, 0.88);
     vec3 indigo = vec3(0.004, 0.014, 0.030);
 
     vec3 scene = vec3(0.0);
@@ -67,16 +68,26 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float shaftX = (uv.x - shaftCenter) * aspectX;
     float shaft = gaussian(shaftX, shaftWidth) * shaftVertical;
     float shaftCore = gaussian(shaftX, shaftWidth * 0.34) * shaftVertical;
+    float sacredThread = gaussian(shaftX, shaftWidth * 0.13)
+                       * (1.0 - smoothstep(0.20, 0.74, uv.y));
     float pulse = 0.86 + 0.14 * sin(iTime * 0.22);
 
     // Breathing glow around the top stained-glass oculus.
     vec2 oculusP = (uv - vec2(0.50, 0.010)) * aspect;
     float oculusGlow = gaussian(length(oculusP), 0.115);
+    float oculusRing = gaussian(length(oculusP) - 0.082, 0.007);
+    float oculusShard = 0.5 + 0.5 * sin(atan(oculusP.y, oculusP.x) * 14.0 - iTime * 0.32);
     float oculusPulse = 0.82 + 0.18 * sin(iTime * 0.28);
     scene += paleBlue * oculusGlow * oculusPulse * 0.055;
+    scene += vec3(0.88, 0.98, 1.00)
+           * oculusRing
+           * smoothstep(0.58, 0.96, oculusShard)
+           * oculusPulse
+           * 0.042;
 
     scene += paleBlue * shaft * pulse * 0.115;
     scene += vec3(0.86, 0.97, 1.00) * shaftCore * pulse * 0.090;
+    scene += vec3(0.92, 1.00, 1.00) * sacredThread * pulse * 0.060;
 
     // Long, slow god rays inside the main shaft.
     vec2 rayP = (uv - vec2(0.50, 0.03)) * aspect;
@@ -90,12 +101,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         float speed = 0.012 + 0.014 * hash(vec2(fi, 3.7));
         float my = 0.02 + fract(hash(vec2(fi, 2.4)) - iTime * speed) * 0.54;
         float t = clamp(my / 0.60, 0.0, 1.0);
-        float mx = 0.5 + (hash(vec2(fi, 5.1)) - 0.5) * mix(0.060, 0.265, t);
+        float beamCenterAtMote = 0.5 + 0.010 * sin(my * 8.0 + iTime * 0.075);
+        float depthDrift = sin(my * 12.0 + fi * 2.1 + iTime * 0.09) * mix(0.004, 0.020, t);
+        float mx = beamCenterAtMote
+                 + depthDrift
+                 + (hash(vec2(fi, 5.1)) - 0.5) * mix(0.045, 0.230, t);
         vec2 mp = (uv - vec2(mx, my)) * aspect;
 
         float m = glassMote(mp, 0.0042 + 0.0045 * hash(vec2(fi, 9.0)));
-        float inBeam = gaussian((mx - shaftCenter) * aspectX, mix(0.040, 0.205, t));
-        scene += paleBlue * m * inBeam * 0.145;
+        float inBeam = gaussian((mx - beamCenterAtMote) * aspectX, mix(0.040, 0.205, t));
+        float depth = mix(1.18, 0.78, t);
+        scene += paleBlue * m * inBeam * depth * 0.145;
     }
 
     // Slower, larger motes that feel suspended rather than sparkly.
@@ -104,24 +120,43 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         float speed = 0.004 + 0.006 * hash(vec2(fi, 12.3));
         float my = 0.06 + fract(hash(vec2(fi, 13.7)) - iTime * speed) * 0.48;
         float t = clamp(my / 0.58, 0.0, 1.0);
-        float mx = 0.5 + (hash(vec2(fi, 15.1)) - 0.5) * mix(0.040, 0.190, t);
+        float beamCenterAtMote = 0.5 + 0.010 * sin(my * 8.0 + iTime * 0.075);
+        float depthDrift = sin(my * 10.0 + fi * 1.8 - iTime * 0.06) * mix(0.003, 0.015, t);
+        float mx = beamCenterAtMote
+                 + depthDrift
+                 + (hash(vec2(fi, 15.1)) - 0.5) * mix(0.032, 0.165, t);
         vec2 mp = (uv - vec2(mx, my)) * aspect;
 
         float mote = glassMote(mp, 0.010 + 0.006 * hash(vec2(fi, 19.0)));
-        float inBeam = gaussian((mx - shaftCenter) * aspectX, mix(0.070, 0.200, t));
+        float inBeam = gaussian((mx - beamCenterAtMote) * aspectX, mix(0.070, 0.200, t));
         float fade = 0.70 + 0.30 * sin(iTime * (0.16 + speed) + fi * 1.7);
         scene += vec3(0.82, 0.98, 1.00) * mote * inBeam * fade * 0.080;
     }
 
-    // Slight cyan shimmer over the stained glass rim at the bottom.
+    // Slow breathing shimmer over the stained glass floor at the bottom.
     float glassRim = gaussian(uv.y - 0.720, 0.045)
                    * (1.0 - smoothstep(0.96, 1.0, uv.y));
     float shimmer = 0.5 + 0.5 * sin(uv.x * 46.0 + iTime * 0.55);
     scene += aqua * glassRim * shimmer * 0.035;
 
+    vec2 glassP = (uv - vec2(0.50, 0.825)) * aspect;
+    float glassFloor = smoothstep(0.665, 0.790, uv.y)
+                     * (1.0 - smoothstep(0.985, 1.0, uv.y));
+    float glassPetals = 0.5 + 0.5 * sin(atan(glassP.y, glassP.x) * 18.0
+                                      + length(glassP) * 18.0
+                                      - iTime * 0.16);
+    float glassBreath = 0.80 + 0.20 * sin(iTime * 0.20);
+    scene += mix(aqua, glassViolet, smoothstep(0.30, 0.92, uv.y))
+           * glassFloor
+           * smoothstep(0.58, 0.96, glassPetals)
+           * glassBreath
+           * 0.026;
+
     // Slightly cool the outer edges so the image stays tucked back.
     float sideShade = smoothstep(0.18, 0.56, abs(uv.x - 0.5));
-    scene -= indigo * sideShade * 0.18;
+    float lowerDepth = smoothstep(0.72, 0.98, uv.y)
+                     * (1.0 - smoothstep(0.24, 0.62, abs(uv.x - 0.5)));
+    scene -= indigo * (sideShade * 0.22 + lowerDepth * 0.08);
 
     float lum = dot(term.rgb, vec3(0.299, 0.587, 0.114));
     float bgMask = 1.0 - smoothstep(0.05, 0.25, lum);
